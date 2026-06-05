@@ -4,3 +4,12 @@ echo output/candidate_embeddings.npy >> .gitignore
 echo output/jd_embedding.npy >> .gitignore
 echo __pycache__/ >> .gitignore
 echo *.pyc >> .gitignore
+data/
+output/raw_candidates.pkl
+output/candidate_embeddings.npy
+output/jd_embedding.npy
+output/stage1_scored.csv
+__pycache__/
+*.pyc
+*.npy
+*.pkl
