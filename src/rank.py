@@ -168,7 +168,8 @@ def run_pipeline(candidates_path: str, output_path: str):
     print("🏆 Selecting Top 100...")
     top100 = df.nlargest(100, "final_score").copy()
     top100 = top100.sort_values(
-        "final_score", ascending=False).reset_index(drop=True)
+    ["final_score", "candidate_id"],
+    ascending=[False, True]).reset_index(drop=True)
     top100["rank"] = range(1, 101)
 
     for i in range(1, len(top100)):
