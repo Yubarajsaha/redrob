@@ -1,0 +1,6 @@
+echo data/candidates.jsonl > .gitignore
+echo output/raw_candidates.pkl >> .gitignore
+echo output/candidate_embeddings.npy >> .gitignore
+echo output/jd_embedding.npy >> .gitignore
+echo __pycache__/ >> .gitignore
+echo *.pyc >> .gitignore
