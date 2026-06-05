@@ -6,4 +6,3 @@ tqdm
 streamlit
 plotly
 sentence-transformers
-torch==2.3.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
