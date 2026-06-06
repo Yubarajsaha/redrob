@@ -34,64 +34,158 @@ def generate_reasoning(c: dict, scores: dict, rank: int) -> str:
     profile = c.get("profile", {})
     signals = c.get("redrob_signals", {}) or {}
     career = c.get("career_history", [])
+    skills = c.get("skills", [])
 
     yoe = profile.get("years_of_experience", 0)
     title = profile.get("current_title", "")
     company = profile.get("current_company", "")
+    location = profile.get("location", "")
+    country = profile.get("country", "")
 
+    # Top skills by proficiency + endorsements
+    top_skills = sorted(
+        skills,
+        key=lambda s: (
+            {"advanced": 3, "intermediate": 2, "beginner": 1}.get(
+                s.get("proficiency", ""), 0),
+            s.get("endorsements", 0)
+        ),
+        reverse=True
+    )[:5]
+    skill_names = [s["name"] for s in top_skills if s.get("name")]
+
+    # Find most relevant career highlight
+    retrieval_job = None
+    ml_job = None
+    for job in career[:3]:
+        desc = (job.get("description") or "").lower()
+        if any(kw in desc for kw in ["retrieval", "ranking", "embedding",
+                                      "search", "recommendation", "vector"]):
+            retrieval_job = job
+            break
+        elif any(kw in desc for kw in ["ml", "machine learning", "nlp",
+                                        "deep learning", "model"]):
+            ml_job = job
+
+    # Assessment scores
+    assessments = signals.get("skill_assessment_scores", {}) or {}
+    best_assessment = max(assessments.items(),
+                          key=lambda x: x[1]) if assessments else None
+
+    # Behavioral signals
+    notice = signals.get("notice_period_days")
+    github = signals.get("github_activity_score", -1)
+    response_rate = signals.get("recruiter_response_rate", 0) or 0
+    days_inactive = _days_since(signals.get("last_active_date", ""))
+    willing_to_relocate = signals.get("willing_to_relocate", False)
+
+    # ── Sentence 1 — specific facts ──────────────────────────────────────────
     facts = []
     if yoe:
-        facts.append(f"{yoe:.1f} years of experience")
+        facts.append(f"{yoe:.1f} yrs exp")
     if title and company:
-        facts.append(f"currently {title} at {company}")
+        facts.append(f"{title} at {company}")
+    if location:
+        facts.append(f"based in {location}")
+    if skill_names:
+        facts.append(f"top skills: {', '.join(skill_names[:3])}")
 
-    for job in career[:2]:
-        desc = (job.get("description") or "")
-        kws = ["retrieval", "ranking", "embedding", "search",
-               "recommendation", "vector"]
-        if any(kw in desc.lower() for kw in kws):
-            facts.append(
-                f"built retrieval/ranking systems at {job.get('company', 'prior company')}")
-            break
-        elif any(kw in desc.lower() for kw in ["ml", "machine learning", "nlp"]):
-            facts.append(
-                f"applied ML work at {job.get('company', 'prior company')}")
-            break
-
-    days = _days_since(signals.get("last_active_date", ""))
-    if days <= 7:
-        facts.append("active on platform this week")
-    elif days <= 30:
-        facts.append("recently active")
-
-    if signals.get("open_to_work_flag"):
-        facts.append("actively seeking roles")
-
-    notice = signals.get("notice_period_days")
-    if notice is not None and notice <= 30:
-        facts.append(f"available within {notice} days")
-    elif notice and notice > 90:
-        facts.append(f"long notice period ({notice} days)")
-
-    concerns = []
-    if scores.get("career_score", 0) < 0.3:
-        concerns.append("limited product-company or IR background")
-    if scores.get("behavioral_score", 0) < 0.3:
-        concerns.append("lower engagement signals")
-    if signals.get("github_activity_score", -1) == -1:
-        concerns.append("no GitHub linked")
-
-    sentence1 = f"{'; '.join(facts[:3])}." if facts else f"{title} with {yoe} years."
+    sentence1 = "; ".join(facts) + "."
     sentence1 = sentence1[0].upper() + sentence1[1:]
 
-    if concerns and rank > 30:
-        sentence2 = f"Concerns: {'; '.join(concerns)}."
-    elif scores.get("career_score", 0) > 0.7:
-        sentence2 = "Strong product-company background with evidence of shipping real ML/retrieval systems."
-    elif scores.get("semantic_score", 0) > 0.7:
-        sentence2 = "High semantic alignment with JD requirements across career narrative."
+    # ── Sentence 2 — specific insight + honest concern ────────────────────────
+    insights = []
+    concerns = []
+
+    # Career specific insight
+    if retrieval_job:
+        duration = retrieval_job.get("duration_months", 0)
+        insights.append(
+            f"Shipped retrieval/search systems at "
+            f"{retrieval_job.get('company')} ({duration}mo tenure)"
+        )
+    elif ml_job:
+        insights.append(
+            f"Applied ML work at {ml_job.get('company')} — "
+            f"adjacent to JD but not direct IR experience"
+        )
+
+    # Assessment insight
+    if best_assessment and best_assessment[1] > 60:
+        insights.append(
+            f"Platform-verified {best_assessment[0]} "
+            f"score: {best_assessment[1]:.0f}/100"
+        )
+    elif best_assessment and best_assessment[1] < 40:
+        concerns.append(
+            f"Low platform assessment in {best_assessment[0]} "
+            f"({best_assessment[1]:.0f}/100)"
+        )
+
+    # GitHub signal
+    if github > 15:
+        insights.append(f"Strong GitHub activity ({github:.0f}/100)")
+    elif github == -1 or github == 0:
+        concerns.append("No GitHub activity linked")
+
+    # Notice period
+    if notice is not None and notice <= 30:
+        insights.append(f"Available in {notice} days")
+    elif notice and notice > 90:
+        concerns.append(f"Long notice period ({notice} days)")
+
+    # Location fit for Pune/Noida
+    loc_lower = (location or "").lower()
+    if any(city in loc_lower for city in ["pune", "noida", "delhi",
+                                           "mumbai", "bangalore",
+                                           "bengaluru", "hyderabad"]):
+        insights.append("India-based — strong location fit")
+    elif country and country.lower() != "india":
+        concerns.append(
+            f"Based outside India ({country}) — relocation needed")
+
+    # Response rate concern
+    if response_rate < 0.2:
+        concerns.append(
+            f"Low recruiter response rate ({response_rate:.0%})")
+
+    # Career score feedback
+    career_score = scores.get("career_score", 0)
+    if career_score > 0.75:
+        insights.append("Strong product-company IR background")
+    elif career_score < 0.35:
+        concerns.append("Limited direct IR/retrieval system experience")
+
+    # Rank-consistent tone
+    if rank <= 10:
+        if insights:
+            sentence2 = "Strengths: " + "; ".join(insights[:2]) + "."
+        else:
+            sentence2 = "High semantic and career alignment with JD."
+    elif rank <= 30:
+        if insights and concerns:
+            sentence2 = (f"{insights[0]}. "
+                         f"Minor concern: {concerns[0]}.")
+        elif insights:
+            sentence2 = "; ".join(insights[:2]) + "."
+        else:
+            sentence2 = "Good overall fit with minor gaps."
+    elif rank <= 60:
+        if concerns:
+            sentence2 = (
+                f"Partial fit — "
+                f"{insights[0] if insights else 'some relevant experience'}. "
+                f"Concern: {concerns[0]}.")
+        else:
+            sentence2 = ("Moderate fit — included based on skill overlap "
+                         "and engagement signals.")
     else:
-        sentence2 = "Included based on skill overlap and engagement signals."
+        if concerns:
+            sentence2 = (f"Below cutoff on key criteria. "
+                         f"Concerns: {'; '.join(concerns[:2])}.")
+        else:
+            sentence2 = ("Borderline inclusion — marginal fit on JD "
+                         "requirements; ranked here due to behavioral signals.")
 
     return f"{sentence1} {sentence2}"
 
@@ -121,13 +215,11 @@ def run_pipeline(candidates_path: str, output_path: str):
         print("⚠️  No precomputed data found — running full pipeline...")
         print("   TIP: Run precompute.py first for faster ranking!\n")
 
-        # Stage 1
         print("📋 Stage 1: Fast filtering...")
         df = stage1_filter(candidates_path, verbose=True)
         t1 = time.time()
         print(f"   Done in {t1-t0:.1f}s\n")
 
-        # Embeddings
         if HAS_ST:
             print("🔍 Semantic embedding...")
             model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -135,7 +227,8 @@ def run_pipeline(candidates_path: str, output_path: str):
                 build_candidate_narrative(row["_raw"])
                 for _, row in df.iterrows()
             ]
-            jd_emb = model.encode([JD_TEXT], normalize_embeddings=True)[0]
+            jd_emb = model.encode(
+                [JD_TEXT], normalize_embeddings=True)[0]
             cand_emb = model.encode(
                 narratives, batch_size=128,
                 show_progress_bar=True,
@@ -168,8 +261,8 @@ def run_pipeline(candidates_path: str, output_path: str):
     print("🏆 Selecting Top 100...")
     top100 = df.nlargest(100, "final_score").copy()
     top100 = top100.sort_values(
-    ["final_score", "candidate_id"],
-    ascending=[False, True]).reset_index(drop=True)
+        ["final_score", "candidate_id"],
+        ascending=[False, True]).reset_index(drop=True)
     top100["rank"] = range(1, 101)
 
     for i in range(1, len(top100)):
@@ -201,6 +294,7 @@ def run_pipeline(candidates_path: str, output_path: str):
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     submission.to_csv(output_path, index=False)
+
     t_end = time.time()
     total = t_end - t0
 
