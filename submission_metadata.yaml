@@ -3,16 +3,15 @@
 # ============================================================================
 # Team identity
 # ============================================================================
-team_name: "yubaraj-saha-solo"
-
+team_name: "yubaraj459_8412"
 primary_contact:
   name: "Yubaraj Saha"
-  email: "yubaraj.code@gmail.com"
+  email: "yubaraj459@gmail.com"
   phone: "+91-9907013309"       
 
 team_members:
   - name: "Yubaraj Saha"
-    email: "yubaraj.code@gmail.com"
+    email: "yubaraj459@gmail.com"
     role: "Solo Participant — Student"
 
 
