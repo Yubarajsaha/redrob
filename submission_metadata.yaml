@@ -1,0 +1,88 @@
+# Redrob Hackathon — Submission Metadata
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "yubaraj-saha-solo"
+
+primary_contact:
+  name: "Yubaraj Saha"
+  email: "yubaraj.code@gmail.com"
+  phone: "+91-9907013309"       
+
+team_members:
+  - name: "Yubaraj Saha"
+    email: "yubaraj.code@gmail.com"
+    role: "Solo Participant — Student"
+
+
+# Code and reproducibility
+
+github_repo: "https://github.com/Yubarajsaha/redrob"
+
+sandbox_link: "https://colab.research.google.com/drive/18kvPkhJ8xFBbEcmJ0zjZzo1yWZ1lHhsc?usp=sharing"
+
+reproduce_command: "python src/rank.py --candidates ./data/candidates.jsonl --out ./output/submission.csv"
+
+
+# Compute environment
+
+compute:
+  platform: "Windows Local Machine"
+  cpu_cores: 12
+  ram_gb: 16
+  python_version: "3.14.0"
+  os: "Windows 11"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: true
+  pre_computation_time_minutes: 23
+
+# 
+# AI tools declaration
+# 
+ai_tools_used:
+  - "Claude,Chat Gpt"
+
+ai_usage_summary: |
+  Used Claude for architecture discussion, code review, and debugging.
+  Claude helped design the 3-stage pipeline architecture and scoring formula.
+  No candidate data was fed to any LLM during ranking.
+  All core logic, scoring weights, and engineering decisions were made by the participant.
+
+
+# Approach summary
+
+methodology_summary: |
+  Three-stage pipeline that ranks 100K candidates to a Top 100 shortlist.
+
+  Stage 1 (Fast Filter): Rule-based filter cuts 100K to ~19K candidates in 5.6s.
+  Removes honeypots (impossible timelines, identical assessments), inactive profiles
+  (>180 days), out-of-range experience, consulting-only careers, and irrelevant skills.
+  Caught 13,579 honeypots from the pool.
+
+  Stage 2a (Semantic Embedding): all-MiniLM-L6-v2 embeds full candidate narratives
+  (headline + summary + career descriptions + skills) and computes cosine similarity
+  against the JD embedding. Pre-computed offline for speed.
+
+  Stage 2b (Deep Career Scoring): Reads actual career descriptions to score:
+  product-company vs consulting ratio, retrieval/search/ranking system evidence,
+  pre-LLM ML experience, production deployment evidence, career progression,
+  startup fit, and tenure stability.
+
+  Stage 3 (Behavioral Signals): Scores platform activity, open-to-work status,
+  recruiter response rate, interview completion rate, GitHub activity, notice period,
+  and relocation willingness.
+
+  Final score: 40% semantic + 25% career quality + 20% behavioral + 15% skills depth.
+  Ranking step completes in 5.8 seconds on CPU, well within 5-minute constraint.
+
+
+# Declarations
+
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true
