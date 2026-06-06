@@ -193,9 +193,14 @@ def run_pipeline(candidates_path: str, output_path: str):
     submission.columns = ["candidate_id", "rank", "score", "reasoning"]
     submission["score"] = submission["score"].round(4)
 
+    # Fix tie-breaking
+    submission = submission.sort_values(
+        ["score", "candidate_id"],
+        ascending=[False, True]).reset_index(drop=True)
+    submission["rank"] = range(1, 101)
+
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     submission.to_csv(output_path, index=False)
-
     t_end = time.time()
     total = t_end - t0
 
